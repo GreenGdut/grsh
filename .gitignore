@@ -1,0 +1,12 @@
+# 构建产物
+build/
+bin/
+
+#IDE
+.idea/
+
+#git
+.git
+
+#soft_link
+my_shell
