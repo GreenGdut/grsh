@@ -100,7 +100,7 @@ int main()
             {
                 if (i == 0 || i + 1 >= argc || i + 2 != argc || strcmp(args[i + 1], ">") == 0)
                 /*难点
-                 *首先，要知道argv[]有argc个参数，但有效参数仅有argc-1个，末尾是NULL
+                 *首先，要知道argv[]有n个参数，但有效参数仅有n-1个，末尾是NULL
                  *上面四个条件分别筛选以下 错误情况
                  * > 前无命令
                  * > 后无filename，直接接NULL
@@ -119,14 +119,34 @@ int main()
                 argc = i;
                 break;
             }
-        }
-
-        if (redirection_error)
-        {
-            continue;
         }//redirection_out
 
         //redirection_in
+        char* input_file = NULL;
+
+        for (size_t i = 0;i < argc;i++)
+        {
+            if (strcmp(args[i],"<") == 0)
+            {
+                if (i == 0 || i + 1 >= argc || i + 2 != argc || strcmp(args[i + 1], "<") == 0)
+                {
+                    fprintf(stderr,"syntax error: expected 'command < filename'\n");
+                    redirection_error = 1;
+                    break;
+                }
+
+                input_file = args[i+1];
+                args[i] = NULL;
+                argc = i;
+                break;
+            }
+        }//redirection_in
+
+        //出错跳过循环
+        if (redirection_error)
+        {
+            continue;
+        }
 
         //fork
         //execvp()执行成功后不会执行后续函数，因此需要放到子进程
@@ -140,6 +160,7 @@ int main()
 
         if (pid == 0)
         {
+            //direction_out
             if (output_file != NULL)
             {
                 const int output_fd = open(output_file,O_WRONLY|O_CREAT|O_TRUNC,0644);
@@ -160,7 +181,33 @@ int main()
                     perror("close");
                     _exit(1);
                 }
-            }
+            }//direction_out
+
+            //direction_in
+            if (input_file != NULL)
+            {
+                const int input_fd = open(input_file,O_RDONLY);
+
+                if (input_fd < 0)
+                {
+                    perror("open");
+                    _exit(1);
+                }
+
+                if (dup2(input_fd,STDIN_FILENO) == -1)
+                {
+                    perror("dup2");
+                    _exit(1);
+                }
+
+                if (close(input_fd) == -1)
+                {
+                    perror("close");
+                    _exit(1);
+                }
+            }//direction_in
+
+
             execvp(args[0],args);
             //(要执行的程序名，以NULL结尾的参数指针数组）
             //寻找对应程序替换进程
