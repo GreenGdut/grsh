@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <limits.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
 int main()
 {
@@ -88,12 +90,46 @@ int main()
             continue;
         }
 
-        //redirection
+        //redirection_out
+        char* output_file = NULL;
+        int redirection_error = 0;
 
+        for (size_t i = 0;i < argc;i++)
+        {
+            if (strcmp(args[i],">") == 0)
+            {
+                if (i == 0 || i + 1 >= argc || i + 2 != argc || strcmp(args[i + 1], ">") == 0)
+                /*难点
+                 *首先，要知道argv[]有argc个参数，但有效参数仅有argc-1个，末尾是NULL
+                 *上面四个条件分别筛选以下 错误情况
+                 * > 前无命令
+                 * > 后无filename，直接接NULL
+                 * > filename 后仍有有效参数，而不是NULL
+                 * 把第二个>当成filename
+                 */
 
-        //redirection
+                {
+                    fprintf(stderr, "syntax error: expected 'command > filename'\n");
+                    redirection_error = 1;
+                    break;
+                }
+
+                output_file = args[i+1];
+                args[i] = NULL; //防止把> filename传给execvp(),
+                argc = i;
+                break;
+            }
+        }
+
+        if (redirection_error)
+        {
+            continue;
+        }//redirection_out
+
+        //redirection_in
 
         //fork
+        //execvp()执行成功后不会执行后续函数，因此需要放到子进程
         pid_t pid = fork();
 
         if (pid < 0)
@@ -104,7 +140,33 @@ int main()
 
         if (pid == 0)
         {
-            execvp(args[0],args);//(要执行的程序名，以NULL结尾的参数指针数组）
+            if (output_file != NULL)
+            {
+                const int output_fd = open(output_file,O_WRONLY|O_CREAT|O_TRUNC,0644);
+                if (output_fd < 0)
+                {
+                    perror("open");
+                    _exit(1);
+                }
+
+                if (dup2(output_fd,STDOUT_FILENO) == -1)
+                {
+                    perror("dup2");
+                    _exit(1);
+                }
+
+                if (close(output_fd) == -1)
+                {
+                    perror("close");
+                    _exit(1);
+                }
+            }
+            execvp(args[0],args);
+            //(要执行的程序名，以NULL结尾的参数指针数组）
+            //寻找对应程序替换进程
+            //v代表传入argv数组,会把该数组作为新程序的传入参数
+            //p代表通过PATH查找程序位置
+            //执行成功不返回值且后续函数被忽略
             perror("execvp");//execvp成功则不会返回
             _exit(127);
         }
