@@ -337,6 +337,7 @@ int main()
         if (waitpid(pid,&status,0))
         {
             perror("waitpid");
+            _exit(1);
         }//fork
 
 
