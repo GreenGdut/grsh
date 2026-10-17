@@ -334,8 +334,7 @@ int main()
         }
 
         int status;
-
-        if (waitpid(pid,&status,0) == -1)
+        if (waitpid(pid,&status,0))
         {
             perror("waitpid");
         }//fork
