@@ -322,7 +322,6 @@ int main()
                 }
             }//direction_in
 
-
             execvp(args[0],args);
             //(要执行的程序名，以NULL结尾的参数指针数组）
             //寻找对应程序替换进程
@@ -339,9 +338,6 @@ int main()
             perror("waitpid");
             _exit(1);
         }//fork
-
-
-
     }
 
     return 0;
