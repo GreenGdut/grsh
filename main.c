@@ -162,7 +162,7 @@ int main()
                 perror("fork");
                 close(pipe_fds[0]);
                 close(pipe_fds[1]);
-                if (waitpid(left_pid,NULL,0))
+                if (waitpid(left_pid,NULL,0) == -1)
                 {
                     perror("waitpid");
                     _exit(1);
@@ -190,12 +190,12 @@ int main()
 
             close(pipe_fds[0]);
             close(pipe_fds[1]);
-            if (waitpid(left_pid,NULL,0))
+            if (waitpid(left_pid,NULL,0) == -1)
             {
                 perror("waitpid");
                 _exit(1);
             }
-            if (waitpid(right_pid,NULL,0))
+            if (waitpid(right_pid,NULL,0) == -1)
             {
                 perror("waitpid");
                 _exit(1);
@@ -333,7 +333,7 @@ int main()
         }
 
         int status;
-        if (waitpid(pid,&status,0))
+        if (waitpid(pid,&status,0) == -1)
         {
             perror("waitpid");
             _exit(1);
