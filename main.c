@@ -90,6 +90,121 @@ int main()
             continue;
         }
 
+        //pipe
+        char** left_args = NULL;
+        char** right_args = NULL;
+        size_t pipe_index = 0;
+        size_t pipe_count = 0;
+
+        for (size_t i = 0;i < argc;i++)
+        {
+            if ( strcmp(args[i],"|") == 0)
+            {
+                pipe_count++;
+                pipe_index = i;
+            }
+        }
+
+        if (pipe_count > 1)
+        {
+            fprintf(stderr,"pipe count: %lu\n",pipe_count);
+            continue;
+        }
+
+        if (pipe_count == 1)
+        {
+            if (pipe_index == 0 || pipe_index == argc - 1)
+            {
+                fprintf(stderr,"syntax error: expected 'command | command'\n");
+                continue;
+            }
+            args[pipe_index] = NULL;
+            right_args = &args[pipe_index + 1];
+            left_args = &args[0];
+
+            int pipe_fds[2];
+            if (pipe(pipe_fds) == -1)
+            {
+                perror("pipe");
+                continue;
+            }
+
+            pid_t left_pid = fork();
+            if (left_pid < 0)
+            {
+                perror("fork");
+                close(pipe_fds[0]);
+                close(pipe_fds[1]);
+                continue;
+            }
+
+            if (left_pid == 0)
+            {
+                if (dup2(pipe_fds[1],STDOUT_FILENO) == -1)
+                {
+                    perror("dup2");
+                    _exit(1);
+                }
+
+                close(pipe_fds[0]);
+                close(pipe_fds[1]);
+
+                if (execvp(left_args[0],left_args) == -1)
+                {
+                    perror("execvp");
+                    _exit(127);
+                }
+            }
+
+            pid_t right_pid = fork();
+            if (right_pid < 0)
+            {
+                perror("fork");
+                close(pipe_fds[0]);
+                close(pipe_fds[1]);
+                if (waitpid(left_pid,NULL,0))
+                {
+                    perror("waitpid");
+                    _exit(1);
+                }
+                continue;
+            }
+
+            if (right_pid == 0)
+            {
+                if (dup2(pipe_fds[0],STDIN_FILENO) == -1)
+                {
+                    perror("dup2");
+                    _exit(1);
+                }
+
+                close(pipe_fds[0]);
+                close(pipe_fds[1]);
+
+                if (execvp(right_args[0],right_args) == -1)
+                {
+                    perror("execvp");
+                    _exit(127);
+                }
+            }
+
+            close(pipe_fds[0]);
+            close(pipe_fds[1]);
+            if (waitpid(left_pid,NULL,0))
+            {
+                perror("waitpid");
+                _exit(1);
+            }
+            if (waitpid(right_pid,NULL,0))
+            {
+                perror("waitpid");
+                _exit(1);
+            }
+
+            continue;
+
+        }//pipe
+
         //redirection_out
         char* output_file = NULL;
         int redirection_error = 0;
